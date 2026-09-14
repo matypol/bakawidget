@@ -53,9 +53,13 @@ see [SECURITY.md](SECURITY.md) for exactly how that works.
 
 - **Refresh interval** — how often to check for updates (default 15 min)
 - **Upcoming lessons to show** — how many chips appear in the strip
+- **Language** — Auto (follows your system locale), English, or Čeština.
+  Applies immediately across the whole widget, including the popup and
+  error states — no restart needed.
 
-Both apply immediately, no need to log in again. Changing the subdomain
-or username does need a fresh login, since those are tied to your stored
+The first two apply immediately, no need to log in again. Changing the
+subdomain or username does need a fresh login, since those are tied to
+your stored
 session.
 
 ## Resetting / logging out

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "Theme.js" as Theme
+import "Strings.js" as Strings
 
 // The compactRepresentation content: the horizontal chip strip from
 // reference/src/App.tsx's ScheduleWidget. Cases the reference mockup does
@@ -11,6 +12,7 @@ RowLayout {
     id: strip
     spacing: 3
 
+    property string language: "en"
     property string status: "loading"
     property bool hasSchoolToday: true
     property var previousLesson: null
@@ -52,11 +54,13 @@ RowLayout {
             color: strip.status === "needs_login" ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.disabledTextColor
             text: {
                 switch (strip.status) {
-                case "needs_login": return "⚠ Log in to Bakaláři"
-                case "loading": return "Loading…"
-                case "error": return "⚠ Bakaláři unavailable"
-                case "stale": return "⚠ Bakaláři unavailable"
-                default: return strip.hasSchoolToday ? "…" : "No lessons today"
+                case "needs_login": return Strings.t(strip.language, "placeholder_needsLogin")
+                case "loading": return Strings.t(strip.language, "placeholder_loading")
+                case "error": return Strings.t(strip.language, "placeholder_unavailable")
+                case "stale": return Strings.t(strip.language, "placeholder_unavailable")
+                default: return strip.hasSchoolToday
+                    ? Strings.t(strip.language, "placeholder_ellipsis")
+                    : Strings.t(strip.language, "placeholder_noLessonsToday")
                 }
             }
         }

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "Theme.js" as Theme
+import "Strings.js" as Strings
 
 // The hover-popup content, ported from the `{hovered && (...)}` block in
 // reference/src/App.tsx's ScheduleWidget. Used both as the mainItem of the
@@ -31,10 +32,12 @@ ColumnLayout {
     implicitWidth: 256
     Layout.preferredWidth: 256
 
+    property string language: "en"
     property string status: "loading"
     property bool hasSchoolToday: true
     property bool stale: false
     property string errorMessage: ""
+    property string errorCode: ""
     property string lastUpdated: ""
     // The lesson shown in the colored header: the current lesson, or the
     // next upcoming one if nothing is in session right now (a case the
@@ -61,10 +64,10 @@ ColumnLayout {
             font.weight: Font.DemiBold
             color: Kirigami.Theme.textColor
             text: {
-                if (card.status === "needs_login") return "Please log in"
-                if (card.status === "error") return "Bakaláři unavailable"
-                if (card.status === "ok" && !card.hasSchoolToday) return "No lessons today"
-                return "Nothing left today"
+                if (card.status === "needs_login") return Strings.t(card.language, "heading_pleaseLogIn")
+                if (card.status === "error") return Strings.t(card.language, "heading_unavailable")
+                if (card.status === "ok" && !card.hasSchoolToday) return Strings.t(card.language, "heading_noLessonsToday")
+                return Strings.t(card.language, "heading_nothingLeftToday")
             }
         }
         Text {
@@ -75,8 +78,8 @@ ColumnLayout {
             font.pixelSize: 10.5
             color: Kirigami.Theme.disabledTextColor
             text: {
-                if (card.status === "needs_login") return card.errorMessage || "Open the widget settings to sign in to Bakaláři."
-                if (card.status === "error") return card.errorMessage || "Could not reach the timetable service."
+                if (card.status === "needs_login") return Strings.errorText(card.language, card.errorCode, card.errorMessage) || Strings.t(card.language, "hint_openSettings")
+                if (card.status === "error") return Strings.errorText(card.language, card.errorCode, card.errorMessage) || Strings.t(card.language, "hint_couldNotReach")
                 return ""
             }
         }
@@ -108,7 +111,7 @@ ColumnLayout {
                 font.weight: Font.Bold
                 font.letterSpacing: 1
                 color: Qt.rgba(1, 1, 1, 0.7)
-                text: (card.headerIsNext ? "NEXT · " : "") + (card.headerLesson ? card.headerLesson.code.toUpperCase() : "")
+                text: (card.headerIsNext ? Strings.t(card.language, "next_prefix") + " · " : "") + (card.headerLesson ? card.headerLesson.code.toUpperCase() : "")
             }
             Text {
             textFormat: Text.PlainText
@@ -144,7 +147,7 @@ ColumnLayout {
                     elide: Text.ElideRight
                     text: card.headerLesson
                         ? [card.headerLesson.teacher, card.headerLesson.group].filter(s => s).join(" ")
-                          + (card.headerLesson.room ? " · Room " + card.headerLesson.room : "")
+                          + (card.headerLesson.room ? " · " + Strings.t(card.language, "room_prefix") + " " + card.headerLesson.room : "")
                         : ""
                 }
                 Text {
@@ -224,7 +227,7 @@ ColumnLayout {
                                     font.pixelSize: 9.5
                                     font.weight: Font.DemiBold
                                     color: Kirigami.Theme.negativeTextColor
-                                    text: "Cancelled"
+                                    text: Strings.t(card.language, "cancelled")
                                 }
                                 Text {
             textFormat: Text.PlainText
@@ -232,7 +235,7 @@ ColumnLayout {
                                     font.pixelSize: 9.5
                                     font.weight: Font.DemiBold
                                     color: Kirigami.Theme.neutralTextColor
-                                    text: "Substituted"
+                                    text: Strings.t(card.language, "substituted")
                                 }
                             }
                             Text {
@@ -241,7 +244,7 @@ ColumnLayout {
                                 elide: Text.ElideRight
                                 font.pixelSize: 9.5
                                 color: Kirigami.Theme.disabledTextColor
-                                text: modelData.start + " · Room " + modelData.room + " · "
+                                text: modelData.start + " · " + Strings.t(card.language, "room_prefix") + " " + modelData.room + " · "
                                     + [modelData.teacher, modelData.group].filter(s => s).join(" ")
                             }
                         }
@@ -252,12 +255,15 @@ ColumnLayout {
     }
 
     Text {
+        textFormat: Text.PlainText
         Layout.fillWidth: true
         Layout.margins: 8
         visible: card.stale
         font.pixelSize: 9
         color: Kirigami.Theme.neutralTextColor
-        text: "⚠ Showing last known schedule" + (card.lastUpdated ? " (" + card.lastUpdated + ")" : "") + (card.errorMessage ? " — " + card.errorMessage : "")
+        text: Strings.t(card.language, "stale_prefix")
+            + (card.lastUpdated ? " (" + card.lastUpdated + ")" : "")
+            + (card.errorMessage ? " — " + Strings.errorText(card.language, card.errorCode, card.errorMessage) : "")
         wrapMode: Text.WordWrap
     }
 }

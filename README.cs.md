@@ -52,8 +52,11 @@ přesně to funguje, viz [SECURITY.md](SECURITY.md) (anglicky).
 - **Interval obnovování** — jak často kontrolovat aktualizace
   (výchozí 15 min)
 - **Počet zobrazených hodin** — kolik "kartiček" se zobrazí v pruhu
+- **Jazyk** — Automaticky (podle systémové lokalizace), English, nebo
+  Čeština. Projeví se okamžitě v celém widgetu, včetně náhledu a
+  chybových stavů — bez nutnosti restartu.
 
-Obě nastavení se projeví okamžitě, bez nutnosti se znovu přihlašovat.
+První dvě volby se projeví okamžitě, bez nutnosti se znovu přihlašovat.
 Změna subdomény nebo uživatelského jména už nové přihlášení vyžaduje,
 protože jsou svázané s uloženou relací.
 

@@ -5,6 +5,7 @@ import Qt.labs.platform as Labs
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.plasma5support as Plasma5Support
 import "../Theme.js" as Theme
+import "../Strings.js" as Strings
 
 // Standard KConfigXT-backed config page. The `cfg_<name>` properties below
 // are the well-known Plasma applet config convention: KDeclarative binds
@@ -20,6 +21,9 @@ Kirigami.FormLayout {
     property alias cfg_username: usernameField.text
     property alias cfg_refreshIntervalMinutes: intervalField.value
     property alias cfg_lessonCount: lessonCountField.value
+    property alias cfg_language: languageField.currentValue
+
+    readonly property string language: Strings.resolveLanguage(cfg_language)
 
     property string password: ""
     property string loginStatusText: ""
@@ -32,6 +36,7 @@ Kirigami.FormLayout {
 
     readonly property string backendPath: Theme.stripFileUrl(Qt.resolvedUrl("../../backend/bakawidget_backend.py"))
     readonly property string runtimeDirPath: Theme.stripFileUrl(Labs.StandardPaths.writableLocation(Labs.StandardPaths.RuntimeLocation).toString())
+    readonly property string stateFilePath: runtimeDirPath + "/bakawidget/state.json"
 
     Plasma5Support.DataSource {
         id: executable
@@ -41,54 +46,70 @@ Kirigami.FormLayout {
             disconnectSource(sourceName)
             page.loginInFlight = false
             var code = data["exit code"]
-            // The backend prints the actual reason to stderr on failure
-            // (see write_needs_login() in bakawidget_backend.py) — show
-            // that directly instead of a generic "something went wrong".
-            var reason = (data.stderr || "").trim()
+            var stderrText = (data.stderr || "").trim()
             var action = page.pendingAction
             page.pendingAction = ""
+
+            // For login/logout, the command chain below always ends with
+            // `cat state.json` regardless of its own success/failure (see
+            // doLogin()/doLogout()), so data.stdout carries the backend's
+            // freshest state — including error_code, the stable identifier
+            // Strings.errorText() translates. This is what lets a failure
+            // here show a fully localized reason instead of raw English
+            // stderr, without re-implementing the backend's own logic.
+            var errorCode = ""
+            var stdout = (data.stdout || "").trim()
+            if (stdout.length > 0) {
+                try {
+                    errorCode = JSON.parse(stdout).error_code || ""
+                } catch (e) {
+                    // Not JSON — e.g. state.json didn't exist yet. Fall
+                    // through to the raw stderr text below.
+                }
+            }
 
             if (action === "interval") {
                 // Fires on every interval change; stay quiet on success so
                 // it doesn't spam the status label for a routine action.
                 if (code !== 0) {
                     page.loginStatusIsError = true
-                    page.loginStatusText = "Could not update the refresh interval" + (reason ? ": " + reason : ".")
+                    page.loginStatusText = Strings.t(page.language, "error_prefix_interval") + (stderrText ? ": " + stderrText : ".")
                 }
                 return
             }
 
             if (code === 0) {
                 page.loginStatusIsError = false
-                page.loginStatusText = action === "logout" ? "Logged out." : "Signed in."
+                page.loginStatusText = action === "logout" ? Strings.t(page.language, "status_loggedOut") : Strings.t(page.language, "status_signedIn")
                 if (action === "login") {
                     page.password = ""
                     passwordField.text = ""
                 }
             } else {
                 page.loginStatusIsError = true
-                var verb = action === "logout" ? "Log out" : "Login"
-                page.loginStatusText = reason.length > 0
-                    ? verb + " failed: " + reason
-                    : verb + " failed before the backend could even run — is python3 and python-dbus installed? See the README's Dependencies section."
+                var verbKey = action === "logout" ? "error_prefix_logout" : "error_prefix_login"
+                var detail = Strings.errorText(page.language, errorCode, stderrText)
+                page.loginStatusText = detail.length > 0
+                    ? Strings.t(page.language, verbKey) + ": " + detail
+                    : Strings.t(page.language, "error_couldNotRunBackend")
             }
         }
     }
 
     QQC2.TextField {
         id: subdomainField
-        Kirigami.FormData.label: "School subdomain:"
-        placeholderText: "e.g. \"skola\" for skola.bakalari.cz"
+        Kirigami.FormData.label: Strings.t(page.language, "label_subdomain")
+        placeholderText: Strings.t(page.language, "placeholder_subdomain")
     }
 
     QQC2.TextField {
         id: usernameField
-        Kirigami.FormData.label: "Username:"
+        Kirigami.FormData.label: Strings.t(page.language, "label_username")
     }
 
     QQC2.TextField {
         id: passwordField
-        Kirigami.FormData.label: "Password:"
+        Kirigami.FormData.label: Strings.t(page.language, "label_password")
         echoMode: TextInput.Password
         onTextChanged: page.password = text
     }
@@ -97,18 +118,18 @@ Kirigami.FormLayout {
         Layout.fillWidth: true
         type: Kirigami.MessageType.Information
         visible: true
-        text: "The password is sent once to exchange it for a Bakaláři login token, then discarded. Only the token is kept, encrypted in KWallet — the password itself is never saved anywhere, including in this widget's own settings file."
+        text: Strings.t(page.language, "inlineMessage")
     }
 
     RowLayout {
         Kirigami.FormData.label: " "
         QQC2.Button {
-            text: page.loginInFlight ? "Signing in…" : "Log in"
+            text: page.loginInFlight ? Strings.t(page.language, "button_signingIn") : Strings.t(page.language, "button_logIn")
             enabled: !page.loginInFlight && subdomainField.text.length > 0 && usernameField.text.length > 0 && passwordField.text.length > 0
             onClicked: page.doLogin()
         }
         QQC2.Button {
-            text: "Log out / clear stored credentials"
+            text: Strings.t(page.language, "button_logOut")
             enabled: !page.loginInFlight
             onClicked: page.doLogout()
         }
@@ -125,12 +146,12 @@ Kirigami.FormLayout {
 
     Kirigami.Separator {
         Kirigami.FormData.isSection: true
-        Kirigami.FormData.label: "Polling"
+        Kirigami.FormData.label: Strings.t(page.language, "section_polling")
     }
 
     QQC2.SpinBox {
         id: intervalField
-        Kirigami.FormData.label: "Refresh every (minutes):"
+        Kirigami.FormData.label: Strings.t(page.language, "label_interval")
         from: 1
         to: 180
         value: 15
@@ -139,10 +160,26 @@ Kirigami.FormLayout {
 
     QQC2.SpinBox {
         id: lessonCountField
-        Kirigami.FormData.label: "Upcoming lessons to show:"
+        Kirigami.FormData.label: Strings.t(page.language, "label_lessonCount")
         from: 1
         to: 6
         value: 2
+    }
+
+    // Label deliberately bilingual and fixed regardless of the current
+    // language, and option text uses the language's own name rather than a
+    // translation of it — a safety net so switching to a language you
+    // don't read never leaves you unable to find your way back.
+    QQC2.ComboBox {
+        id: languageField
+        Kirigami.FormData.label: Strings.t(page.language, "label_language")
+        textRole: "text"
+        valueRole: "value"
+        model: [
+            { value: "auto", text: Strings.t(page.language, "option_auto") },
+            { value: "en", text: Strings.t(page.language, "option_en") },
+            { value: "cs", text: Strings.t(page.language, "option_cs") },
+        ]
     }
 
     function shq(s) {
@@ -171,10 +208,14 @@ Kirigami.FormLayout {
         // step: it refuses to write through a pre-existing file or symlink
         // at that exact path rather than following it, the same class of
         // protection atomic_write_json's O_NOFOLLOW gives the Python side.
-        var cmd = "python3 " + shq(backendPath) + " ensure-dirs"
+        // The whole thing is wrapped so `cat state.json` always runs last
+        // regardless of success/failure, and `exit $ec` preserves the
+        // actual login attempt's own exit code rather than cat's.
+        var loginChain = "python3 " + shq(backendPath) + " ensure-dirs"
             + " && umask 077 && set -o noclobber"
             + " && printf '%s' " + shq(payload) + " > " + shq(reqFile)
             + " && python3 " + shq(backendPath) + " login " + shq(reqFile)
+        var cmd = "(" + loginChain + ") ; ec=$? ; cat " + shq(stateFilePath) + " 2>/dev/null ; exit $ec"
         executable.connectSource(cmd)
     }
 
@@ -185,7 +226,8 @@ Kirigami.FormLayout {
         subdomainField.text = ""
         usernameField.text = ""
         passwordField.text = ""
-        var cmd = "python3 " + shq(backendPath) + " logout"
+        var logoutChain = "python3 " + shq(backendPath) + " logout"
+        var cmd = "(" + logoutChain + ") ; ec=$? ; cat " + shq(stateFilePath) + " 2>/dev/null ; exit $ec"
         executable.connectSource(cmd)
     }
 

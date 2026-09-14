@@ -5,9 +5,12 @@ import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.plasma5support as Plasma5Support
 import "Theme.js" as Theme
+import "Strings.js" as Strings
 
 PlasmoidItem {
     id: root
+
+    readonly property string language: Strings.resolveLanguage(Plasmoid.configuration.language)
 
     // ── backend wiring ───────────────────────────────────────────────
     // IPC choice (see contents/backend/bakawidget_backend.py docstring for
@@ -30,6 +33,7 @@ PlasmoidItem {
     property bool hasSchoolToday: true
     property bool stale: false
     property string errorMessage: ""
+    property string errorCode: ""
     property string lastUpdated: ""
     property var previousLesson: null
     property var currentLesson: null
@@ -109,6 +113,7 @@ PlasmoidItem {
         status = data.status || "loading"
         stale = !!data.stale
         errorMessage = data.error || ""
+        errorCode = data.error_code || ""
         hasSchoolToday = data.has_school_today !== false
         previousLesson = data.previous || null
         currentLesson = data.current || null
@@ -129,10 +134,12 @@ PlasmoidItem {
         interactive: true
 
         mainItem: DetailCard {
+            language: root.language
             status: root.status
             hasSchoolToday: root.hasSchoolToday
             stale: root.stale
             errorMessage: root.errorMessage
+            errorCode: root.errorCode
             lastUpdated: root.lastUpdated
             headerLesson: root.headerLesson
             headerIsNext: root.headerIsNext
@@ -142,6 +149,7 @@ PlasmoidItem {
         ScheduleStrip {
             id: strip
             anchors.fill: parent
+            language: root.language
             status: root.status
             hasSchoolToday: root.hasSchoolToday
             previousLesson: root.previousLesson
@@ -154,10 +162,12 @@ PlasmoidItem {
 
     fullRepresentation: DetailCard {
         Layout.preferredHeight: implicitHeight
+        language: root.language
         status: root.status
         hasSchoolToday: root.hasSchoolToday
         stale: root.stale
         errorMessage: root.errorMessage
+        errorCode: root.errorCode
         lastUpdated: root.lastUpdated
         headerLesson: root.headerLesson
         headerIsNext: root.headerIsNext

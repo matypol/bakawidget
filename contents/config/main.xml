@@ -32,5 +32,10 @@
       <min>1</min>
       <max>6</max>
     </entry>
+    <entry name="language" type="String">
+      <label>Widget display language</label>
+      <!-- "auto" | "en" | "cs" — see contents/ui/Strings.js -->
+      <default>auto</default>
+    </entry>
   </group>
 </kcfg>

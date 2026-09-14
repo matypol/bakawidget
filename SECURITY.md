@@ -97,3 +97,9 @@
   output — it's opt-in and redacts known Name-shaped fields, but review
   it yourself before sharing since room codes, subjects, and internal
   IDs are kept on purpose (they're what's needed to diagnose the bug).
+- **The language config field** (`ConfigGeneral.qml`'s `cfg_language`)
+  aliases a `QQC2.ComboBox`'s `currentValue` directly — a pattern that
+  should correctly initialize from and write back to KConfigXT on modern
+  Qt6/Plasma6, but hasn't been confirmed against a live config dialog. If
+  the language selector doesn't remember your choice after closing and
+  reopening the config page, this is the first place to look.

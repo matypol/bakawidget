@@ -248,8 +248,13 @@ def write_state(**fields):
     atomic_write_json(state_path(), state)
 
 
-def write_needs_login(message):
-    write_state(status="needs_login", error=message, stale=False)
+def write_needs_login(message, code=None):
+    # `error` stays the raw English message (for stderr/journald and as a
+    # fallback); `error_code` is a stable identifier the QML side
+    # translates via Strings.js's errorText() — see that file for why:
+    # translating free-form English prose reliably would mean pattern-
+    # matching it, which breaks the moment either side edits a string.
+    write_state(status="needs_login", error=message, error_code=code, stale=False)
     # Also to stderr: when this runs as a one-shot `login` invocation from
     # the config page, Plasma's executable data engine captures stderr and
     # ConfigGeneral.qml shows it directly, so a beginner sees the real
@@ -257,11 +262,12 @@ def write_needs_login(message):
     print(message, file=sys.stderr)
 
 
-def write_error_keep_stale(message):
+def write_error_keep_stale(message, code=None):
     """Network/API error: keep whatever lessons we last had, just flag stale."""
     state = load_json(state_path(), {}) or {}
     state["status"] = "stale" if state.get("current") is not None or state.get("upcoming") else "error"
     state["error"] = message
+    state["error_code"] = code
     state["stale"] = True
     state["generated_at"] = now_iso()
     atomic_write_json(state_path(), state)
@@ -614,7 +620,7 @@ def cmd_login(cred_file):
     except OSError:
         pass
     if not creds:
-        write_needs_login("Could not read the login request.")
+        write_needs_login("Could not read the login request.", code="bad_request")
         return 1
 
     subdomain = creds.get("subdomain", "").strip()
@@ -623,7 +629,7 @@ def cmd_login(cred_file):
     interval_minutes = _safe_int(creds.get("interval_minutes"), 15, 1, 1440)
 
     if not subdomain or not username or not password:
-        write_needs_login("Subdomain, username and password are all required.")
+        write_needs_login("Subdomain, username and password are all required.", code="missing_fields")
         return 1
 
     # Defense-in-depth, independent of the QML side's shell-quoting: reject
@@ -634,29 +640,29 @@ def cmd_login(cred_file):
     # with these values), it's a second, independent layer catching
     # malformed input for its own sake.
     if not _VALID_SUBDOMAIN_RE.match(subdomain):
-        write_needs_login("That doesn't look like a valid subdomain or URL (e.g. \"skola\" or \"https://skola.bakalari.cz\").")
+        write_needs_login("That doesn't look like a valid subdomain or URL (e.g. \"skola\" or \"https://skola.bakalari.cz\").", code="invalid_subdomain")
         return 1
     if not _VALID_USERNAME_RE.match(username):
-        write_needs_login("That doesn't look like a valid username.")
+        write_needs_login("That doesn't look like a valid username.", code="invalid_username")
         return 1
 
     try:
         token_resp = login_password(subdomain, username, password)
     except ApiError as e:
-        write_needs_login(f"Login failed: {e}")
+        write_needs_login(f"Login failed: {e}", code="login_failed")
         return 1
     finally:
         password = None  # noqa: F841 - drop reference ASAP
 
     refresh_token = token_resp.get("refresh_token")
     if not refresh_token:
-        write_needs_login("Login response did not include a refresh token.")
+        write_needs_login("Login response did not include a refresh token.", code="no_refresh_token")
         return 1
 
     try:
         wallet_store(subdomain, username, refresh_token)
     except WalletError as e:
-        write_needs_login(f"Login succeeded but KWallet storage failed: {e}")
+        write_needs_login(f"Login succeeded but KWallet storage failed: {e}", code="wallet_store_failed")
         return 1
 
     atomic_write_json(config_path(), {
@@ -680,7 +686,7 @@ def cmd_logout():
             os.remove(p)
         except OSError:
             pass
-    write_state(status="needs_login", error=None, stale=False,
+    write_state(status="needs_login", error=None, error_code=None, stale=False,
                 previous=None, current=None, upcoming=[], all_today=[],
                 has_school_today=None)
     return 0
@@ -696,7 +702,7 @@ def cmd_set_interval(minutes):
 def cmd_poll():
     cfg = load_json(config_path())
     if not cfg or not cfg.get("subdomain") or not cfg.get("username"):
-        write_needs_login("Not logged in yet.")
+        write_needs_login("Not logged in yet.", code="not_logged_in")
         return 1
 
     subdomain = cfg["subdomain"]
@@ -704,11 +710,11 @@ def cmd_poll():
     try:
         wallet = wallet_load(subdomain)
     except WalletError as e:
-        write_error_keep_stale(f"Could not reach KWallet: {e}")
+        write_error_keep_stale(f"Could not reach KWallet: {e}", code="wallet_unreachable")
         return 1
 
     if not wallet or not wallet.get("refresh_token"):
-        write_needs_login("No stored credentials found — please log in again.")
+        write_needs_login("No stored credentials found — please log in again.", code="no_credentials")
         return 1
 
     try:
@@ -719,9 +725,9 @@ def cmd_poll():
                 wallet_remove(subdomain)
             except WalletError:
                 pass
-            write_needs_login("Your Bakaláři session expired — please log in again.")
+            write_needs_login("Your Bakaláři session expired — please log in again.", code="session_expired")
             return 1
-        write_error_keep_stale(str(e))
+        write_error_keep_stale(str(e), code="poll_failed")
         return 1
 
     access_token = token_resp.get("access_token")
@@ -745,7 +751,7 @@ def cmd_poll():
             raw = fetch_timetable(subdomain, access_token, "permanent")
             lessons = parse_lessons_for_day(raw, today)
     except ApiError as e:
-        write_error_keep_stale(str(e))
+        write_error_keep_stale(str(e), code="poll_failed")
         return 1
 
     has_school_today = lessons is not None
@@ -755,6 +761,7 @@ def cmd_poll():
     write_state(
         status="ok",
         error=None,
+        error_code=None,
         stale=False,
         last_success_at=now_iso(),
         date=today.isoformat(),
@@ -815,7 +822,7 @@ def cmd_daemon():
         try:
             cmd_poll()
         except Exception as e:  # keep the daemon alive no matter what
-            write_error_keep_stale(f"Unexpected backend error: {e}")
+            write_error_keep_stale(f"Unexpected backend error: {e}", code="unexpected_error")
         cfg = load_json(config_path(), {}) or {}
         interval = _safe_int(cfg.get("interval_minutes"), 15, 1, 1440)
         for _ in range(interval * 60):
@@ -858,7 +865,7 @@ def main(argv):
         # cmd_login's trailing cmd_poll() call) — this reports the failure
         # without incorrectly implying you need to log in again.
         try:
-            write_error_keep_stale(f"Unexpected error: {e}")
+            write_error_keep_stale(f"Unexpected error: {e}", code="unexpected_error")
         except Exception:
             pass  # e.g. the original failure WAS the state dir being unsafe — don't mask it with a second crash
         print(f"Unexpected error running '{cmd}': {e}", file=sys.stderr)
