@@ -1,0 +1,18 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "You"
+            }
+        ],
+        "Category": "Date and Time",
+        "Description": "Shows your upcoming Bakaláři school lessons in the panel, with a hover popup for details.",
+        "EnabledByDefault": true,
+        "Icon": "view-calendar-day",
+        "Id": "bakawidget",
+        "Name": "BakaWidget",
+        "Version": "1.0"
+    },
+    "X-Plasma-API": "declarativeappletscript",
+    "X-Plasma-MainScript": "ui/main.qml"
+}

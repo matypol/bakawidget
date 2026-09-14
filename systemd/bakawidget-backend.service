@@ -1,0 +1,45 @@
+[Unit]
+Description=BakaWidget — background timetable poller
+# KWallet (org.kde.kwalletd6) is D-Bus-activated on demand, not an explicit
+# systemd unit, so there's nothing to order against for it specifically.
+After=graphical-session.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# %h expands to the invoking user's home directory (systemd --user specifier).
+ExecStart=/usr/bin/python3 %h/.local/share/plasma/plasmoids/bakawidget/contents/backend/bakawidget_backend.py daemon
+Restart=on-failure
+RestartSec=10
+# This process holds a live access token (and briefly a refresh token) in
+# memory for as long as it runs. If it ever crashes with systemd-coredump
+# enabled (a common distro default), that memory — tokens included — would
+# otherwise be written to /var/lib/systemd/coredump and stay readable via
+# coredumpctl indefinitely. Disabling core dumps for this unit specifically
+# closes that off at near-zero cost (the script also sets RLIMIT_CORE to 0
+# itself, so this is enforced even for non-systemd invocations).
+LimitCORE=0
+
+# Standard, low-risk systemd sandboxing. Deliberately NOT including
+# ProtectHome/ProtectSystem=strict here: this process needs to write to
+# ~/.config/bakawidget and read $XDG_RUNTIME_DIR, and getting a
+# ReadWritePaths= allowlist wrong would silently break the widget in a way
+# I can't verify without a live Plasma session to test against — worth
+# adding once someone can confirm it end to end, but shipping a guess that
+# might break logins isn't better than the current, narrower hardening.
+# Everything below is unconditionally safe for a pure-Python network
+# client: it doesn't load kernel modules, need SUID/SGID execution, change
+# the clock, or JIT-compile anything.
+NoNewPrivileges=true
+ProtectClock=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=default.target

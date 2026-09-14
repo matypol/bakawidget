@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                           http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <!--
+    Only non-secret settings live here. This file is plasmoid config and is
+    stored in plain text (like every Plasma widget's config), so the password
+    is NEVER written here - it only ever exists transiently in memory in
+    ConfigGeneral.qml and a 0600 tmpfile, before being handed to the Python
+    backend, which exchanges it for tokens and stores the refresh token in
+    KWallet. See contents/backend/bakawidget_backend.py for that flow.
+  -->
+  <group name="General">
+    <entry name="subdomain" type="String">
+      <label>Bakaláři school subdomain (the "skola" part of skola.bakalari.cz)</label>
+      <default></default>
+    </entry>
+    <entry name="username" type="String">
+      <label>Bakaláři username</label>
+      <default></default>
+    </entry>
+    <entry name="refreshIntervalMinutes" type="Int">
+      <label>How often to poll the timetable, in minutes</label>
+      <default>15</default>
+      <min>1</min>
+      <max>180</max>
+    </entry>
+    <entry name="lessonCount" type="Int">
+      <label>How many upcoming lessons to show in the strip</label>
+      <default>2</default>
+      <min>1</min>
+      <max>6</max>
+    </entry>
+  </group>
+</kcfg>

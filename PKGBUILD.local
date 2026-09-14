@@ -1,0 +1,36 @@
+# Maintainer: You <you@example.invalid>
+#
+# DEV-ONLY variant of PKGBUILD: packages the files already sitting in this
+# directory instead of downloading a tagged release, so you can build and
+# test with `makepkg -si` before you've pushed anything to GitHub. This is
+# NOT the file to publish to the AUR — see PKGBUILD (and README.md's
+# "Publishing to the AUR" section) for that one, which needs a real source
+# URL since AUR builds happen in a clean environment with none of these
+# local files present.
+pkgname=plasma6-applets-bakawidget
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Plasma 6 taskbar widget showing your upcoming Bakaláři school lessons"
+arch=('any')
+url="https://github.com/example/bakawidget"
+license=('MIT')
+depends=('plasma-workspace' 'python' 'python-dbus')
+install="${pkgname}.install"
+source=()
+sha256sums=()
+
+package() {
+    local plugin_id=bakawidget
+    local dest="${pkgdir}/usr/share/plasma/plasmoids/${plugin_id}"
+
+    install -dm755 "${dest}"
+    cp -r "${startdir}/contents" "${dest}/"
+    install -Dm644 "${startdir}/metadata.json" "${dest}/metadata.json"
+
+    # System-wide systemd --user unit search path. `systemctl --user` picks
+    # this up automatically for every user on the machine — no per-user
+    # copy into ~/.config/systemd/user needed, unlike install.sh which has
+    # no write access outside $HOME.
+    install -Dm644 "${startdir}/systemd/bakawidget-backend.service" \
+        "${pkgdir}/usr/lib/systemd/user/bakawidget-backend.service"
+}
