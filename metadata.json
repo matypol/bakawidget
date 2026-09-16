@@ -12,7 +12,5 @@
         "Id": "bakawidget",
         "Name": "BakaWidget",
         "Version": "1.0"
-    },
-    "X-Plasma-API": "declarativeappletscript",
-    "X-Plasma-MainScript": "ui/main.qml"
+    }
 }
