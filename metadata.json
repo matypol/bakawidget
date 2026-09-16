@@ -11,6 +11,9 @@
         "Icon": "view-calendar-day",
         "Id": "bakawidget",
         "Name": "BakaWidget",
+        "ServiceTypes": ["Plasma/Applet"],
         "Version": "1.0"
-    }
+    },
+    "X-Plasma-API": "declarativeappletscript",
+    "X-Plasma-MainScript": "ui/main.qml"
 }
